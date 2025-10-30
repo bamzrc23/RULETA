@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ruleta con Probabilidades</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Indicador (flecha) arriba del canvas */
+    .pointer {
+      width: 0; height: 0; position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+      border-left: 14px solid transparent; border-right: 14px solid transparent; border-bottom: 24px solid #111827;
+      z-index: 10;
+    }
+    /* Scroll suave para listas largas */
+    .smooth-scroll { scroll-behavior: smooth; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 smooth-scroll">
+  <div class="max-w-6xl mx-auto p-6">
+    <header class="mb-6">
+      <h1 class="text-3xl font-bold">🎯 Ruleta con Probabilidades</h1>
+      <p class="text-slate-600 mt-2">Agrega productos con probabilidad <strong>baja</strong>, <strong>media</strong> o <strong>alta</strong>. Todo se guarda en tu navegador y está listo para subir a un hosting gratuito.</p>
+    </header>
+
+    <!-- Controles principales -->
+    <section class="grid md:grid-cols-3 gap-6 items-start">
+      <!-- Formulario -->
+      <div class="md:col-span-1 bg-white rounded-2xl shadow p-4">
+        <h2 class="font-semibold mb-3">Agregar producto</h2>
+        <form id="formItem" class="space-y-3">
+          <div>
+            <label class="text-sm text-slate-600">Nombre del producto</label>
+            <input id="nombre" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Ej: Taza, Camiseta, Sticker" required />
+          </div>
+          <div>
+            <label class="text-sm text-slate-600">Probabilidad</label>
+            <select id="prob" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+              <option value="baja">Baja</option>
+              <option value="media" selected>Media</option>
+              <option value="alta">Alta</option>
+            </select>
+          </div>
+          <button class="w-full rounded-xl bg-indigo-600 text-white py-2 font-medium hover:bg-indigo-700">Añadir</button>
+        </form>
+
+        <div class="mt-6 border-t pt-4">
+          <h3 class="font-semibold mb-2">Pesos (avanzado)</h3>
+          <p class="text-sm text-slate-600 mb-3">Ajusta el "peso" de cada categoría. Un número mayor = más probabilidad.</p>
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="text-xs text-slate-500">Baja</label>
+              <input id="pesoBaja" type="number" min="1" value="1" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1" />
+            </div>
+            <div>
+              <label class="text-xs text-slate-500">Media</label>
+              <input id="pesoMedia" type="number" min="1" value="3" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1" />
+            </div>
+            <div>
+              <label class="text-xs text-slate-500">Alta</label>
+              <input id="pesoAlta" type="number" min="1" value="6" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1" />
+            </div>
+          </div>
+          <button id="btnGuardarPesos" class="mt-3 w-full rounded-xl bg-slate-800 text-white py-2 text-sm hover:bg-slate-900">Guardar pesos</button>
+        </div>
+
+        <div class="mt-6 border-t pt-4 flex flex-col gap-2">
+          <button id="btnExportar" class="rounded-xl bg-emerald-600 text-white py-2 text-sm hover:bg-emerald-700">Exportar configuración</button>
+          <label class="rounded-xl bg-slate-200 text-slate-800 py-2 text-sm text-center cursor-pointer hover:bg-slate-300">
+            Importar configuración
+            <input id="inputImportar" type="file" accept="application/json" class="hidden" />
+          </label>
+          <button id="btnLimpiar" class="rounded-xl bg-rose-600 text-white py-2 text-sm hover:bg-rose-700">Borrar todo</button>
+        </div>
+      </div>
+
+      <!-- Lista -->
+      <div class="md:col-span-1 bg-white rounded-2xl shadow p-4">
+        <h2 class="font-semibold mb-3">Productos</h2>
+        <div class="overflow-auto max-h-[420px]">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-slate-500">
+                <th class="py-2">Producto</th>
+                <th class="py-2">Prob.</th>
+                <th class="py-2 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody" class="align-top"></tbody>
+          </table>
+        </div>
+        <p id="totalInfo" class="mt-3 text-xs text-slate-500"></p>
+      </div>
+
+      <!-- Ruleta -->
+      <div class="md:col-span-1">
+        <div class="relative flex flex-col items-center bg-white rounded-2xl shadow p-4">
+          <div class="pointer" aria-hidden="true"></div>
+          <canvas id="wheel" width="360" height="360" class="rounded-full"></canvas>
+          <button id="btnGirar" class="mt-4 rounded-xl bg-indigo-600 text-white px-5 py-2 font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">Girar</button>
+          <p id="resultado" class="mt-3 text-slate-700 font-medium"></p>
+        </div>
+        <p class="text-xs text-slate-500 mt-3">Consejo: añade al menos 2 productos para girar.</p>
+      </div>
+    </section>
+
+    <footer class="mt-10 text-xs text-slate-500">
+      Hecho para subir fácil a <a href="https://pages.github.com/" target="_blank" class="text-indigo-600 underline">GitHub Pages</a>, <a href="https://www.netlify.com/" target="_blank" class="text-indigo-600 underline">Netlify</a> o <a href="https://vercel.com/" target="_blank" class="text-indigo-600 underline">Vercel</a>.
+    </footer>
+  </div>
+
+  <script>
+    // ====== Estado y persistencia ======
+    const LS_KEY = 'ruletaProductosV1';
+    const state = {
+      items: [], // { id, nombre, prob: 'baja'|'media'|'alta' }
+      pesos: { baja: 1, media: 3, alta: 6 },
+      giro: { angle: 0, speed: 0, anim: false, targetAngle: null }
+    };
+
+    function uid(){ return Math.random().toString(36).slice(2,9) }
+
+    function save(){ localStorage.setItem(LS_KEY, JSON.stringify({ items: state.items, pesos: state.pesos })); }
+    function load(){
+      try{
+        const raw = localStorage.getItem(LS_KEY);
+        if(!raw) return;
+        const parsed = JSON.parse(raw);
+        if(Array.isArray(parsed.items)) state.items = parsed.items;
+        if(parsed.pesos) state.pesos = { ...state.pesos, ...parsed.pesos };
+      }catch(e){ console.warn('No se pudo cargar LS', e); }
+    }
+
+    // ====== UI bindings ======
+    const form = document.getElementById('formItem');
+    const nombre = document.getElementById('nombre');
+    const prob = document.getElementById('prob');
+    const tbody = document.getElementById('tbody');
+    const totalInfo = document.getElementById('totalInfo');
+    const pesoBaja = document.getElementById('pesoBaja');
+    const pesoMedia = document.getElementById('pesoMedia');
+    const pesoAlta = document.getElementById('pesoAlta');
+    const btnGuardarPesos = document.getElementById('btnGuardarPesos');
+    const btnLimpiar = document.getElementById('btnLimpiar');
+    const btnExportar = document.getElementById('btnExportar');
+    const inputImportar = document.getElementById('inputImportar');
+    const wheel = document.getElementById('wheel');
+    const ctx = wheel.getContext('2d');
+    const btnGirar = document.getElementById('btnGirar');
+    const resultado = document.getElementById('resultado');
+
+    // ====== Lógica de pesos y sorteo ======
+    function pesoDe(cat){ return Number(state.pesos[cat] || 1); }
+
+    function totalPeso(){ return state.items.reduce((acc, it) => acc + pesoDe(it.prob), 0); }
+
+    function drawWheel(){
+      const W = wheel.width, H = wheel.height; const R = Math.min(W, H) / 2;
+      ctx.clearRect(0,0,W,H); ctx.save();
+      ctx.translate(W/2, H/2);
+      ctx.rotate(state.giro.angle);
+      const n = state.items.length;
+      if(n === 0){
+        ctx.fillStyle = '#e5e7eb';
+        ctx.beginPath(); ctx.arc(0,0,R,0,Math.PI*2); ctx.fill();
+        ctx.restore();
+        return;
+      }
+      // paleta simple
+      const colors = ['#FDE68A','#A7F3D0','#BFDBFE','#FCA5A5','#C4B5FD','#FBCFE8','#99F6E4','#FCD34D'];
+      let start = 0;
+      const step = (Math.PI*2) / n; // TODOS los sectores con el MISMO tamaño
+      state.items.forEach((it, idx)=>{
+        const end = start + step;
+        // sector
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,R,start,end); ctx.closePath();
+        ctx.fillStyle = colors[idx % colors.length]; ctx.fill();
+        // borde
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+        // texto
+        const mid = (start + end)/2; const tx = Math.cos(mid) * (R*0.62); const ty = Math.sin(mid) * (R*0.62);
+        ctx.save(); ctx.translate(tx,ty); ctx.rotate(mid);
+        ctx.fillStyle = '#111827'; ctx.font = 'bold 14px system-ui, -apple-system, Segoe UI, Roboto';
+        const txt = `${it.nombre}`;
+        const maxW = R*0.9; let show = txt;
+        while(ctx.measureText(show).width > maxW && show.length>3){ show = show.slice(0, -2) + '…'; }
+        ctx.fillText(show, -ctx.measureText(show).width/2, 5);
+        ctx.restore();
+        start = end;
+      });
+      // círculo central
+      ctx.beginPath(); ctx.fillStyle = '#ffffff'; ctx.arc(0,0,R*0.12,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+
+    function buildRangos(){
+      const total = totalPeso();
+      let acc = 0;
+      return state.items.map(it => {
+        const w = pesoDe(it.prob);
+        const start = acc; const end = acc + w/total; acc = end;
+        return { it, start, end };
+      });
+    }
+
+    function sortear(){
+      const r = Math.random();
+      const rangos = buildRangos();
+      const found = rangos.find(x => r >= x.start && r < x.end) || rangos[rangos.length-1];
+      return found.it;
+    }
+
+    function angleForItem(it){
+      // Con sectores IGUALES: apuntamos al centro del sector del índice del item
+      const n = state.items.length; if(n===0) return 0;
+      const idx = state.items.findIndex(x=>x.id===it.id);
+      const step = (Math.PI*2)/n;
+      const mid = idx * step + step/2; // ángulo del centro del sector (con rueda en 0)
+      const indicatorAngle = -Math.PI/2; // arriba
+      let target = indicatorAngle - mid; // cuánto rotar adicional desde 0 para que el centro quede arriba
+      const vueltas = 4 + Math.floor(Math.random()*2); // 4-5 vueltas
+      target += Math.PI*2*vueltas;
+      return target;
+    }
+
+    function animGiro(target){
+      state.giro.anim = true;
+      state.giro.targetAngle = state.giro.angle + target;
+      const dur = 3500 + Math.random()*1000; // 3.5-4.5s
+      const startTime = performance.now();
+      const startAngle = state.giro.angle;
+      function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
+      function step(now){
+        const t = Math.min(1, (now - startTime)/dur);
+        const eased = easeOutCubic(t);
+        state.giro.angle = startAngle + (state.giro.targetAngle - startAngle) * eased;
+        drawWheel();
+        if(t < 1){ requestAnimationFrame(step); }
+        else { state.giro.anim = false; finGiro(); }
+      }
+      requestAnimationFrame(step);
+    }
+
+    function finGiro(){
+      // Detectar el sector arriba con sectores IGUALES
+      const n = state.items.length; if(n===0) { resultado.textContent=''; return; }
+      const angle = ((state.giro.angle % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+      const up = -Math.PI/2; // ángulo del indicador
+      const pointerAngle = (up - angle + Math.PI*2) % (Math.PI*2);
+      const step = (Math.PI*2)/n;
+      let idx = Math.floor(pointerAngle / step);
+      if(idx >= n) idx = n-1;
+      const x = state.items[idx];
+      resultado.textContent = `Resultado: ${x.nombre} (${x.prob})`;
+    }
+
+    // ====== Render lista ======
+    function renderLista(){
+      tbody.innerHTML = '';
+      state.items.forEach((it)=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="py-2 pr-2">${escapeHtml(it.nombre)}</td>
+          <td class="py-2 pr-2"><span class="px-2 py-1 rounded-full text-xs ${badgeClass(it.prob)}">${it.prob}</span></td>
+          <td class="py-2 text-right">
+            <button data-id="${it.id}" class="btnDel text-rose-600 hover:underline">Eliminar</button>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+      tbody.querySelectorAll('.btnDel').forEach(btn=>{
+        btn.addEventListener('click', (e)=>{
+          const id = e.currentTarget.getAttribute('data-id');
+          state.items = state.items.filter(x=>x.id!==id);
+          save(); refresh();
+        });
+      });
+      const total = totalPeso();
+      totalInfo.textContent = total ? `Sectores iguales | Peso total: ${total} (baja=${state.pesos.baja}, media=${state.pesos.media}, alta=${state.pesos.alta})` : 'Sin productos.';
+      btnGirar.disabled = state.items.length < 2;
+    }
+
+    function badgeClass(p){
+      return p==='alta' ? 'bg-emerald-100 text-emerald-700' : p==='media' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700';
+    }
+
+    function escapeHtml(s){
+      return s.replace(/[&<>"']/g, (c)=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+    }
+
+    function refresh(){
+      renderLista(); drawWheel();
+    }
+
+    // ====== Eventos ======
+    form.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const n = nombre.value.trim(); if(!n) return;
+      state.items.push({ id: uid(), nombre: n, prob: prob.value });
+      nombre.value=''; prob.value='media';
+      save(); refresh();
+    });
+
+    btnGuardarPesos.addEventListener('click', ()=>{
+      state.pesos = {
+        baja: Math.max(1, Number(pesoBaja.value || 1)),
+        media: Math.max(1, Number(pesoMedia.value || 3)),
+        alta: Math.max(1, Number(pesoAlta.value || 6)),
+      };
+      save(); refresh();
+    });
+
+    btnLimpiar.addEventListener('click', ()=>{
+      if(confirm('¿Borrar todos los productos y restablecer pesos?')){
+        state.items = []; state.pesos = { baja:1, media:3, alta:6 }; save();
+        pesoBaja.value=1; pesoMedia.value=3; pesoAlta.value=6;
+        refresh(); resultado.textContent='';
+      }
+    });
+
+    btnExportar.addEventListener('click', ()=>{
+      const data = { items: state.items, pesos: state.pesos };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'ruleta_config.json';
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    });
+
+    inputImportar.addEventListener('change', async (e)=>{
+      const file = e.target.files[0]; if(!file) return;
+      try{
+        const text = await file.text();
+        const json = JSON.parse(text);
+        if(Array.isArray(json.items) && json.pesos){
+          state.items = json.items.map(x=>({ id: x.id || uid(), nombre: String(x.nombre||'Item'), prob: (['baja','media','alta'].includes(x.prob)? x.prob : 'media') }));
+          state.pesos = { baja: Number(json.pesos.baja)||1, media: Number(json.pesos.media)||3, alta: Number(json.pesos.alta)||6 };
+          pesoBaja.value = state.pesos.baja; pesoMedia.value = state.pesos.media; pesoAlta.value = state.pesos.alta;
+          save(); refresh(); resultado.textContent='';
+        } else { alert('Archivo inválido.'); }
+      } catch(err){ alert('No se pudo importar.'); }
+      e.target.value = '';
+    });
+
+    btnGirar.addEventListener('click', ()=>{
+      if(state.giro.anim || state.items.length < 2) return;
+      // Seleccionar por pesos y animar hacia ese sector
+      const elegido = sortear();
+      const target = angleForItem(elegido);
+      animGiro(target);
+    });
+
+    // ====== Init ======
+    load();
+    pesoBaja.value = state.pesos.baja; pesoMedia.value = state.pesos.media; pesoAlta.value = state.pesos.alta;
+    refresh();
+  </script>
+</body>
+</html>
