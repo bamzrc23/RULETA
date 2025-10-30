@@ -20,13 +20,16 @@
   <div class="max-w-6xl mx-auto p-6">
     <header class="mb-6">
       <h1 class="text-3xl font-bold">🎯 Ruleta con Probabilidades</h1>
-      <p class="text-slate-600 mt-2">Agrega productos con probabilidad <strong>baja</strong>, <strong>media</strong> o <strong>alta</strong>. Todo se guarda en tu navegador y está listo para subir a un hosting gratuito.</p>
+      <p class="text-slate-600 mt-2">
+        Agrega productos con probabilidad <strong>baja</strong>, <strong>media</strong> o <strong>alta</strong>.
+        Sectores visualmente iguales; la probabilidad se aplica al <strong>giro</strong>. Todo se guarda en tu navegador.
+      </p>
     </header>
 
-    <!-- Controles principales -->
-    <section class="grid md:grid-cols-3 gap-6 items-start">
-      <!-- Formulario -->
-      <div class="md:col-span-1 bg-white rounded-2xl shadow p-4">
+    <!-- Controles superiores -->
+    <section class="grid md:grid-cols-2 gap-6 items-start">
+      <!-- Columna izquierda: Formulario -->
+      <div class="bg-white rounded-2xl shadow p-4">
         <h2 class="font-semibold mb-3">Agregar producto</h2>
         <form id="formItem" class="space-y-3">
           <div>
@@ -74,8 +77,8 @@
         </div>
       </div>
 
-      <!-- Lista -->
-      <div class="md:col-span-1 bg-white rounded-2xl shadow p-4">
+      <!-- Columna derecha: Lista -->
+      <div class="bg-white rounded-2xl shadow p-4">
         <h2 class="font-semibold mb-3">Productos</h2>
         <div class="overflow-auto max-h-[420px]">
           <table class="w-full text-sm">
@@ -91,16 +94,16 @@
         </div>
         <p id="totalInfo" class="mt-3 text-xs text-slate-500"></p>
       </div>
+    </section>
 
-      <!-- Ruleta -->
-      <div class="md:col-span-1">
-        <div class="relative flex flex-col items-center bg-white rounded-2xl shadow p-4">
-          <div class="pointer" aria-hidden="true"></div>
-          <canvas id="wheel" width="360" height="360" class="rounded-full"></canvas>
-          <button id="btnGirar" class="mt-4 rounded-xl bg-indigo-600 text-white px-5 py-2 font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">Girar</button>
-          <p id="resultado" class="mt-3 text-slate-700 font-medium"></p>
-        </div>
-        <p class="text-xs text-slate-500 mt-3">Consejo: añade al menos 2 productos para girar.</p>
+    <!-- Ruleta grande abajo -->
+    <section class="mt-10">
+      <div class="relative flex flex-col items-center bg-white rounded-2xl shadow p-4 w-full">
+        <div class="pointer" aria-hidden="true"></div>
+        <canvas id="wheel" width="640" height="640" class="rounded-full"></canvas>
+        <button id="btnGirar" class="mt-4 rounded-xl bg-indigo-600 text-white px-5 py-2 font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">Girar</button>
+        <p id="resultado" class="mt-3 text-slate-700 font-medium"></p>
+        <p class="text-xs text-slate-500 mt-2">Consejo: añade al menos 2 productos para girar.</p>
       </div>
     </section>
 
@@ -115,12 +118,14 @@
     const state = {
       items: [], // { id, nombre, prob: 'baja'|'media'|'alta' }
       pesos: { baja: 1, media: 3, alta: 6 },
-      giro: { angle: 0, speed: 0, anim: false, targetAngle: null }
+      giro: { angle: 0, anim: false, targetAngle: null }
     };
 
     function uid(){ return Math.random().toString(36).slice(2,9) }
 
-    function save(){ localStorage.setItem(LS_KEY, JSON.stringify({ items: state.items, pesos: state.pesos })); }
+    function save(){
+      localStorage.setItem(LS_KEY, JSON.stringify({ items: state.items, pesos: state.pesos }));
+    }
     function load(){
       try{
         const raw = localStorage.getItem(LS_KEY);
@@ -151,14 +156,20 @@
 
     // ====== Lógica de pesos y sorteo ======
     function pesoDe(cat){ return Number(state.pesos[cat] || 1); }
-
     function totalPeso(){ return state.items.reduce((acc, it) => acc + pesoDe(it.prob), 0); }
 
+    // Sectores IGUALES (la prob se aplica al sorteo)
     function drawWheel(){
+      // Ajuste responsivo: grande pero cabe en pantalla
+      const parentW = wheel.parentElement.clientWidth || 640;
+      const size = Math.min(680, Math.max(360, parentW - 32));
+      if (wheel.width !== size) { wheel.width = size; wheel.height = size; }
+
       const W = wheel.width, H = wheel.height; const R = Math.min(W, H) / 2;
       ctx.clearRect(0,0,W,H); ctx.save();
       ctx.translate(W/2, H/2);
       ctx.rotate(state.giro.angle);
+
       const n = state.items.length;
       if(n === 0){
         ctx.fillStyle = '#e5e7eb';
@@ -166,10 +177,11 @@
         ctx.restore();
         return;
       }
-      // paleta simple
+
       const colors = ['#FDE68A','#A7F3D0','#BFDBFE','#FCA5A5','#C4B5FD','#FBCFE8','#99F6E4','#FCD34D'];
+      const step = (Math.PI*2) / n;
       let start = 0;
-      const step = (Math.PI*2) / n; // TODOS los sectores con el MISMO tamaño
+
       state.items.forEach((it, idx)=>{
         const end = start + step;
         // sector
@@ -186,10 +198,13 @@
         while(ctx.measureText(show).width > maxW && show.length>3){ show = show.slice(0, -2) + '…'; }
         ctx.fillText(show, -ctx.measureText(show).width/2, 5);
         ctx.restore();
+
         start = end;
       });
+
       // círculo central
       ctx.beginPath(); ctx.fillStyle = '#ffffff'; ctx.arc(0,0,R*0.12,0,Math.PI*2); ctx.fill();
+
       ctx.restore();
     }
 
@@ -198,7 +213,7 @@
       let acc = 0;
       return state.items.map(it => {
         const w = pesoDe(it.prob);
-        const start = acc; const end = acc + w/total; acc = end;
+        const start = acc; const end = acc + (w/total); acc = end;
         return { it, start, end };
       });
     }
@@ -251,7 +266,7 @@
       let idx = Math.floor(pointerAngle / step);
       if(idx >= n) idx = n-1;
       const x = state.items[idx];
-      resultado.textContent = `Resultado: ${x.nombre} (${x.prob})`;
+      resultado.textContent = `Resultado: ${x.nombre}`;
     }
 
     // ====== Render lista ======
@@ -275,21 +290,23 @@
         });
       });
       const total = totalPeso();
-      totalInfo.textContent = total ? `Sectores iguales | Peso total: ${total} (baja=${state.pesos.baja}, media=${state.pesos.media}, alta=${state.pesos.alta})` : 'Sin productos.';
+      totalInfo.textContent = total
+        ? `Sectores iguales | Peso total: ${total} (baja=${state.pesos.baja}, media=${state.pesos.media}, alta=${state.pesos.alta})`
+        : 'Sin productos.';
       btnGirar.disabled = state.items.length < 2;
     }
 
     function badgeClass(p){
-      return p==='alta' ? 'bg-emerald-100 text-emerald-700' : p==='media' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700';
+      return p==='alta' ? 'bg-emerald-100 text-emerald-700'
+           : p==='media' ? 'bg-amber-100 text-amber-700'
+           : 'bg-slate-100 text-slate-700';
     }
 
     function escapeHtml(s){
       return s.replace(/[&<>"']/g, (c)=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
     }
 
-    function refresh(){
-      renderLista(); drawWheel();
-    }
+    function refresh(){ renderLista(); drawWheel(); }
 
     // ====== Eventos ======
     form.addEventListener('submit', (e)=>{
@@ -331,8 +348,16 @@
         const text = await file.text();
         const json = JSON.parse(text);
         if(Array.isArray(json.items) && json.pesos){
-          state.items = json.items.map(x=>({ id: x.id || uid(), nombre: String(x.nombre||'Item'), prob: (['baja','media','alta'].includes(x.prob)? x.prob : 'media') }));
-          state.pesos = { baja: Number(json.pesos.baja)||1, media: Number(json.pesos.media)||3, alta: Number(json.pesos.alta)||6 };
+          state.items = json.items.map(x=>({
+            id: x.id || uid(),
+            nombre: String(x.nombre||'Item'),
+            prob: (['baja','media','alta'].includes(x.prob)? x.prob : 'media')
+          }));
+          state.pesos = {
+            baja: Number(json.pesos.baja)||1,
+            media: Number(json.pesos.media)||3,
+            alta: Number(json.pesos.alta)||6
+          };
           pesoBaja.value = state.pesos.baja; pesoMedia.value = state.pesos.media; pesoAlta.value = state.pesos.alta;
           save(); refresh(); resultado.textContent='';
         } else { alert('Archivo inválido.'); }
@@ -342,9 +367,8 @@
 
     btnGirar.addEventListener('click', ()=>{
       if(state.giro.anim || state.items.length < 2) return;
-      // Seleccionar por pesos y animar hacia ese sector
-      const elegido = sortear();
-      const target = angleForItem(elegido);
+      const elegido = sortear();              // Elegido por pesos (baja/media/alta)
+      const target = angleForItem(elegido);   // Giramos para caer en su sector
       animGiro(target);
     });
 
@@ -352,6 +376,7 @@
     load();
     pesoBaja.value = state.pesos.baja; pesoMedia.value = state.pesos.media; pesoAlta.value = state.pesos.alta;
     refresh();
+    window.addEventListener('resize', drawWheel);
   </script>
 </body>
 </html>
